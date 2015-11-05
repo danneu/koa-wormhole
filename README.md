@@ -1,6 +1,10 @@
 
 # koa-wormhole
 
+[![Build Status](https://travis-ci.org/danneu/koa-wormhole.svg?branch=master)](https://travis-ci.org/danneu/koa-wormhole)
+[![NPM version](https://badge.fury.io/js/koa-wormhole.svg)](http://badge.fury.io/js/koa-wormhole)
+[![Dependency Status](https://david-dm.org/danneu/koa-wormhole.svg)](https://david-dm.org/danneu/koa-wormhole)
+
 A simple router for [Koa](http://koajs.com/) similar to koa-router.
 
     npm install --save koa-wormhole
