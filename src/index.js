@@ -6,13 +6,22 @@ const assert = require('better-assert');
 const methods = require('methods'); // note: these methods are all lowercase
 const pathToRegexp = require('path-to-regexp');
 const _ = require('lodash');
+const debug = require('debug')('koa-wormhole:index');
 
-function Router() {
+function Router(opts) {
   // allow Router() to be instantiated without the `new` keyword
   // seems to be common in koa ecosystem
   if (!(this instanceof Router)) {
     return new Router();
   }
+
+  // these are passed through to pathToRegexp
+  // they are the pathToRegexp defaults
+  this.opts = _.defaults(opts || {}, {
+    sensitive: false,
+    strict: false,
+    end: true
+  });
 
   // the full stack of middleware in this router to be composed at
   // .middleware() time into a single middleware function
@@ -89,7 +98,7 @@ Router.prototype.register = function(path, verbs, mws) {
   // shouldn't have to remember if verbs are upper or lower case.
   verbs = verbs.map(s => s.toLowerCase());
 
-  const pathRe = pathToRegexp(path);
+  const pathRe = pathToRegexp(path, this.opts);
 
   // a route is just middleware that only gets called when it matches
   // ctx.method and ctx.path, so here we wrap the handler in that logic

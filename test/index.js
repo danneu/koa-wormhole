@@ -28,6 +28,7 @@ function makeApp() {
     if (this.status === 404) {
       assert.instanceOf(this.arr, Array);
       this.arr.push('Z');
+      this.status = 404;  // preserve 404 since sitting body turns it into 200
       this.body = this.arr;
     }
   });
@@ -79,7 +80,7 @@ describe('router middleware', () => {
 
     request(app.listen())
       .get('/not-found')
-      .expect(200)
+      .expect(404)
       .expect(['A', 'Z'])
       .end(done);
   });
@@ -96,7 +97,7 @@ describe('router matches but handler yields next', () => {
 
     request(app.listen())
       .get('/')
-      .expect(200)
+      .expect(404)
       .expect(['A','B','C','D','Z'])
       .end(done);
   });
@@ -208,7 +209,7 @@ describe('multiple routers', () => {
 
     request(app.listen())
       .get('/not-found')
-      .expect(200)
+      .expect(404)
       .expect(['A', 'Z'])
       //.expect('42')
       .end(done);
@@ -721,4 +722,99 @@ describe('Router#{verb}', () => {
       .end(done);
   });
 
+});
+
+describe('default behavior:', () => {
+  it('case-insensitive path matching', done => {
+    const app = makeApp();
+    const r1 = new Router();
+    r1.get('/Foo', terminal('handler'));
+    app.use(r1.middleware());
+
+    const server = app.listen();
+    async.parallel([
+      cb => request(server).get('/foo').expect(200).end(cb),
+      cb => request(server).get('/FOO').expect(200).end(cb),
+      cb => request(server).get('/Foo').expect(200).end(cb),
+      cb => request(server).get('/sanity-check').expect(404).end(cb)
+    ], done);
+  });
+
+  it('trailing slash is optional', done => {
+    const app = makeApp();
+    const r1 = new Router();
+    r1.get('/foo', terminal('handler'));
+    app.use(r1.middleware());
+
+    const server = app.listen();
+    async.parallel([
+      cb => request(server).get('/foo').expect(200).end(cb),
+      cb => request(server).get('/foo/').expect(200).end(cb),
+      cb => request(server).get('/sanity-check').expect(404).end(cb)
+    ], done);
+  });
+
+  it('path must match start to finish', done => {
+    const app = makeApp();
+    const r1 = new Router();
+    r1.get('/foo', terminal('handler'));
+    app.use(r1.middleware());
+
+    const server = app.listen();
+    async.parallel([
+      cb => request(server).get('/foo').expect(200).end(cb),
+      cb => request(server).get('/foo/bar').expect(404).end(cb),
+      cb => request(server).get('/sanity-check').expect(404).end(cb)
+    ], done);
+  });
+});
+
+describe('behavior override:', () => {
+  it('allows case-sensitive path matching', done => {
+    const app = makeApp();
+    const r1 = new Router({ sensitive: true });
+    r1.get('/Foo', terminal('handler'));
+    app.use(r1.middleware());
+
+    const server = app.listen();
+    async.parallel([
+      cb => request(server).get('/foo').expect(404).end(cb),
+      cb => request(server).get('/FOO').expect(404).end(cb),
+      cb => request(server).get('/Foo').expect(200).end(cb),
+      cb => request(server).get('/sanity-check').expect(404).end(cb)
+    ], done);
+  });
+
+  it('allows trailing-slash strictness', done => {
+    const app = makeApp();
+    const r1 = new Router({ strict: true });
+    r1.get('/foo', terminal('handler'));
+    r1.get('/bar/', terminal('handler'));
+    app.use(r1.middleware());
+
+    const server = app.listen();
+    async.parallel([
+      cb => request(server).get('/foo').expect(200).end(cb),
+      cb => request(server).get('/foo/').expect(404).end(cb),
+      cb => request(server).get('/bar').expect(404).end(cb),
+      cb => request(server).get('/bar/').expect(200).end(cb),
+      cb => request(server).get('/sanity-check').expect(404).end(cb)
+    ], done);
+  });
+
+  it('allow partial path match from start', done => {
+    const app = makeApp();
+    const r1 = new Router({ end: false });
+    r1.get('/foo', terminal('handler'));
+    app.use(r1.middleware());
+
+    const server = app.listen();
+    async.parallel([
+      cb => request(server).get('/foo').expect(200).end(cb),
+      cb => request(server).get('/foo/').expect(200).end(cb),
+      cb => request(server).get('/foo/bar').expect(200).end(cb),
+      cb => request(server).get('/foo/bar/').expect(200).end(cb),
+      cb => request(server).get('/sanity-check').expect(404).end(cb)
+    ], done);
+  });
 });
