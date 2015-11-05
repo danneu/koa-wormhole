@@ -120,7 +120,7 @@ methods.forEach(method => {
   Router.prototype[method] = function(path /*, ...mws */) {
     const mws = Array.prototype.slice.call(arguments, 1);
     assert(_.isArray(mws));
-    this.register(path, [method], mws);
+    this.register(path, [method], _.flatten(mws));
     return this;
   };
 });

@@ -10,7 +10,6 @@ const methods = require('methods'); // note: lowercased
 // 1st
 const Router = require('../src/index.js');
 
-function json(data) { return JSON.stringify(data); }
 function makeApp() {
   const app = koa();
   app.use(function*(next) {
@@ -667,4 +666,59 @@ describe('Router#register', () => {
 
     async.parallel(tasks, done);
   });
+});
+
+describe('Router#{verb}', () => {
+  it('works with one mw', done => {
+    const app = makeApp();
+    const r1 = new Router();
+    r1.get('/', terminal('handler'));
+    app.use(r1.middleware());
+
+    request(app.listen())
+      .get('/')
+      .expect(200)
+      .expect(['A', 'handler'])
+      .end(done);
+  });
+
+  it('works with multiple mw passed in spread-style', done => {
+    const app = makeApp();
+    const r1 = new Router();
+    r1.get('/', passthru('mw1'), passthru('mw2'), terminal('handler'));
+    app.use(r1.middleware());
+
+    request(app.listen())
+      .get('/')
+      .expect(200)
+      .expect(['A', 'mw1', 'mw2', 'handler'])
+      .end(done);
+  });
+
+  it('works with multiple mw passed in together as an array', done => {
+    const app = makeApp();
+    const r1 = new Router();
+    r1.get('/', [passthru('mw1'), passthru('mw2'), terminal('handler')]);
+    app.use(r1.middleware());
+
+    request(app.listen())
+      .get('/')
+      .expect(200)
+      .expect(['A', 'mw1', 'mw2', 'handler'])
+      .end(done);
+  });
+
+  it('works with multiple mw passed in as arrays and as spread (at the same time)', done => {
+    const app = makeApp();
+    const r1 = new Router();
+    r1.get('/', [passthru('mw1'), passthru('mw2')], passthru('mw3'), [passthru('mw4')], terminal('handler'));
+    app.use(r1.middleware());
+
+    request(app.listen())
+      .get('/')
+      .expect(200)
+      .expect(['A', 'mw1', 'mw2', 'mw3', 'mw4', 'handler'])
+      .end(done);
+  });
+
 });
