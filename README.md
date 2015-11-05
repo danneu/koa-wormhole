@@ -12,7 +12,7 @@ A simple, predictable, low-performance router for
 
 ## Quickstart
 
-```
+``` javascript
 const Router = require('koa-wormhole');
 
 const router1 = new Router();
