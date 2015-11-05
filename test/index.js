@@ -985,3 +985,63 @@ describe('Validator#param', () => {
       .end(done);
   });
 });
+
+describe('HEAD request', () => {
+  it('is allowed any time a GET is defined for the route', done => {
+    const app = makeApp();
+    const router = new Router();
+    router.get('/zoo', function*() {
+      // set this header to ensure that our head request actually hits the get
+      // request i.e. picks up and preserves its custom header.
+      this.set('test-header', 'ok');
+      this.body = 'ok';
+    });
+    app.use(router.middleware());
+
+    const server = app.listen();
+    async.parallel([
+        function(cb) {
+          request(server)
+            .get('/zoo')
+            .expect(200)
+            .expect('content-length', 2)
+            .expect('test-header', 'ok')
+            .expect('ok')
+            .end(cb);
+        },
+        function(cb) {
+          request(server)
+            .head('/zoo')
+            .expect(200)
+            .expect('content-length', 0)
+            .expect('test-header', 'ok')
+            .expect('')
+            .end(cb);
+        }
+    ], done);
+  });
+
+  it('404 if there is no GET request for that path', done => {
+    const app = makeApp();
+    const router = new Router();
+    router.post('/users', function*() { this.body = 'ok'; });
+    app.use(router.middleware());
+
+    const server = app.listen();
+    async.parallel([
+        function(cb) {
+          request(server)
+            .post('/users')
+            .expect(200)
+            .expect('ok')
+            .end(cb);
+        },
+        function(cb) {
+          request(server)
+            .head('/users')
+            .expect(404)
+            .end(cb);
+        }
+    ], done);
+  });
+});

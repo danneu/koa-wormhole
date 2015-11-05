@@ -135,6 +135,19 @@ Router.prototype.register = function(path, verbs, mws) {
     };
   });
 
+  // handle HEAD if route handles GET
+  //
+  // we want our default HEAD response to run before the GET so that we can
+  // yield next and modify the GET response as it comes back upstream (
+  // removing the body)
+  if (_.contains(verbs, 'get') && !_.contains(verbs, 'head')) {
+    this.register(path, ['head'], [function*(next) {
+      const ctx = this;
+      yield* next;
+      ctx.body = '';
+    }, ...mws]);
+  }
+
   this.stack.push(...wrappedMws);
 
   this.routes.push({
