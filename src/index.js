@@ -32,6 +32,22 @@ function Router(opts) {
   this.routes = [];
 }
 
+Router.prototype.param = function(key, mw) {
+  this.use(function*(next) {
+    // activate mw if param key is in pathRe keys
+    // TODO: consider the scenario where this.params is mutated upstream
+    // perhaps i should look at route's pathRe.keys.some(k => k.name===key)
+    // directly. write tests that consider this exact mutation event.
+    if (_.isUndefined(this.params[key])) {
+      yield* next;
+    } else {
+      yield* mw.call(this, this.params[key], next);
+    }
+  });
+
+  return this;
+};
+
 Router.prototype.middleware = function() {
   // this is the accumulation of all the .use() and .{verb}() methods
   // called on this router, composed into one big chain
@@ -45,14 +61,16 @@ Router.prototype.middleware = function() {
   const wrapware = function* wrapware(next) {
     const ctx = this;
 
-    ctx.params = Object.create(null);
-
     const isMatch = self.routes.some(route => {
       if (!_.contains(route.methods, ctx.method.toLowerCase())) return false;
       const result = route.pathRe.exec(ctx.path);
       if (!result) return false;
+
       // FIXME: it's nasty having a side-effect in a filter function like this
+      // TODO: figure out what i actually want to expose
+      // and why.
       ctx.params = _.zipObject(_.pluck(route.pathRe.keys, 'name'), result.slice(1));
+
       return true;
     });
 

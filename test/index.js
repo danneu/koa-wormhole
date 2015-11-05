@@ -868,3 +868,120 @@ describe('when parent yields to child router matching same request,', () => {
     });
   });
 });
+
+describe('Validator#param', () => {
+  it('works', done => {
+    const app = koa();
+    const router = new Router();
+    router.param('uname', function*(val, next) {
+      this.currUser = { uname: val };
+      yield* next;
+    });
+    router.get('/user/:uname', function*() {
+      this.body = this.currUser;
+    });
+    app.use(router.middleware());
+
+    request(app.listen())
+      .get('/user/foo')
+      .expect(200)
+      .expect({ uname: 'foo' })
+      .end(done);
+  });
+
+  it('does not do anything if there is no :param match', done => {
+    const app = koa();
+    const router = new Router();
+    router.param('uname', function*(val, next) {
+      this.currUser = { uname: val };
+      yield* next;
+    });
+    router.get('/user/:uname2', function*() {
+      assert.isUndefined(this.currUser);
+      this.body = 'ok';
+    });
+    app.use(router.middleware());
+
+    request(app.listen())
+      .get('/user/foo')
+      .expect(200)
+      .end(done);
+  });
+
+  it('can be defined for multiple params in the same route', done => {
+    const app = makeApp();
+    const router = new Router();
+    router.param('a', function*(val, next) {
+      this.arr.push(val);
+      yield* next;
+    });
+    router.param('b', function*(val, next) {
+      this.arr.push(val);
+      yield* next;
+    });
+    router.param('c', function*(val, next) {
+      this.arr.push(val);
+      yield* next;
+    });
+    router.get('/:a/:b/:c', function*() {
+      this.arr.push('handler');
+      this.body = this.arr;
+    });
+    app.use(router.middleware());
+
+    request(app.listen())
+      .get('/who/are/you')
+      .expect(200)
+      .expect(['A', 'who', 'are', 'you', 'handler'])
+      .end(done);
+  });
+
+  it('can be defined multiple times for the same param', done => {
+    const app = makeApp();
+    const router = new Router();
+    router.param('a', function*(val, next) {
+      this.arr.push(val);
+      yield* next;
+    });
+    router.param('a', function*(val, next) {
+      this.arr.push(val);
+      yield* next;
+    });
+    router.param('a', function*(val, next) {
+      this.arr.push(val);
+      yield* next;
+    });
+    router.get('/:a/:b/:c', function*() {
+      this.arr.push('handler');
+      this.body = this.arr;
+    });
+    app.use(router.middleware());
+
+    request(app.listen())
+      .get('/who/are/you')
+      .expect(200)
+      .expect(['A', 'who', 'who', 'who', 'handler'])
+      .end(done);
+  });
+
+  it('it is sequence dependent like all middleware', done => {
+    const app = makeApp();
+    const router = new Router();
+    router.get('/users/:id', function*() {
+      this.arr.push('handler');
+      this.body = this.arr;
+    });
+    // coming after the terminal handler
+    router.param('id', function*(val, next) {
+      this.arr.push(val);
+      yield* next;
+    });
+    app.use(router.middleware());
+
+    request(app.listen())
+      .get('/users/42')
+      .expect(200)
+      .expect(['A', 'handler'])
+      .end(done);
+  });
+});
