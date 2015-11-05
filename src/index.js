@@ -86,6 +86,9 @@ Router.prototype.register = function(path, verbs, mws) {
   assert(_.isArray(verbs));
   assert(_.isArray(mws));
 
+  // shouldn't have to remember if verbs are upper or lower case.
+  verbs = verbs.map(s => s.toLowerCase());
+
   const pathRe = pathToRegexp(path);
 
   // a route is just middleware that only gets called when it matches
