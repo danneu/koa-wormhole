@@ -1,6 +1,6 @@
 {
   "name": "koa-wormhole",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A http request router for Koa",
   "main": "src/index.js",
   "scripts": {
