@@ -15,9 +15,8 @@ function Router(opts) {
     return new Router();
   }
 
-  // these are passed through to pathToRegexp
-  // they are the pathToRegexp defaults
   this.opts = _.defaults(opts || {}, {
+    // the pathToRegexp defaults
     sensitive: false,
     strict: false,
     end: true
@@ -98,7 +97,11 @@ Router.prototype.register = function(path, verbs, mws) {
   // shouldn't have to remember if verbs are upper or lower case.
   verbs = verbs.map(s => s.toLowerCase());
 
-  const pathRe = pathToRegexp(path, this.opts);
+  const pathRe = pathToRegexp(path, _.pick(this.opts, [
+    'sensitive',
+    'strict',
+    'end'
+  ]));
 
   // a route is just middleware that only gets called when it matches
   // ctx.method and ctx.path, so here we wrap the handler in that logic
