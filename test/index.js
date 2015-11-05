@@ -563,9 +563,10 @@ describe('Router#all', () => {
     r1.all('/test', function*() { this.body = 'ok'; });
     app.use(r1.middleware());
 
+    const server = app.listen();
     const tasks = ['get', 'post', 'put', 'delete'].map(verb => {
       return function(cb) {
-        request(app.listen())[verb]('/test')
+        request(server)[verb]('/test')
           .expect(200)
           .expect('ok')
           .end(cb);
