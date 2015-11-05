@@ -819,3 +819,52 @@ describe('behavior override:', () => {
     ], done);
   });
 });
+
+describe('when parent yields to child router matching same request,', () => {
+  describe('child router', () => {
+    it('gets same this.params as parent', done => {
+      const app = makeApp();
+      const parentRouter = new Router(), childRouter = new Router();
+      parentRouter.get('/users/:uname/comments/:id', function*(next) {
+        assert.deepEqual(this.params, { uname: 'foo', id: '42' });
+        yield* next;
+      });
+      childRouter.get('/users/:uname/comments/:id', function*() {
+        assert.deepEqual(this.params, { uname: 'foo', id: '42' });
+        this.body = 'ok';
+      });
+      parentRouter.use(childRouter.middleware());
+      app.use(parentRouter.middleware());
+
+      request(app.listen())
+        .get('/users/foo/comments/42')
+        .expect('ok')
+        .end(done);
+    });
+
+    // TODO: consider opts.mergeParams like express has
+    it('[default] does not see manipulated this.params values', done => {
+      const app = makeApp();
+      const parentRouter = new Router();
+      const childRouter = new Router({ mergeParams: true });
+      parentRouter.get('/users/:uname/comments/:id', function*(next) {
+        assert.deepEqual(this.params, { uname: 'foo', id: '42' });
+        this.params.uname = 'bar';
+        this.params.id = '69';
+        this.params.extra = ':)';
+        yield* next;
+      });
+      childRouter.get('/users/:uname/comments/:id', function*() {
+        assert.deepEqual(this.params, { uname: 'foo', id: '42' });
+        this.body = 'ok';
+      });
+      parentRouter.use(childRouter.middleware());
+      app.use(parentRouter.middleware());
+
+      request(app.listen())
+        .get('/users/foo/comments/42')
+        .expect('ok')
+        .end(done);
+    });
+  });
+});
