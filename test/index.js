@@ -575,3 +575,96 @@ describe('Router#all', () => {
     async.parallel(tasks, done);
   });
 });
+
+describe('Router#register', () => {
+  it('works with general one-verb, one-handler use-case', done => {
+    const app = makeApp();
+    const r1 = new Router();
+    r1.register('/test', ['get'], [function*() {
+      this.body = 'ok';
+    }]);
+    app.use(r1.middleware());
+
+    request(app.listen())
+      .get('/test')
+      .expect(200)
+      .expect('ok')
+      .end(done);
+  });
+
+  it('still works if you forget verb case', done => {
+    const app = makeApp();
+    const r1 = new Router();
+    r1.register('/test', ['GET'], [function*() {
+      this.body = 'ok';
+    }]);
+    app.use(r1.middleware());
+
+    request(app.listen())
+      .get('/test')
+      .expect(200)
+      .expect('ok')
+      .end(done);
+  });
+
+  it('can assign one handler to multiple verbs', done => {
+    const app = makeApp();
+    const r1 = new Router();
+    r1.register('/test', ['get', 'post', 'put', 'delete'], [function*() {
+      this.body = 'ok';
+    }]);
+    app.use(r1.middleware());
+
+    const server = app.listen();
+    const tasks = ['get', 'post', 'put', 'delete'].map(verb => {
+      return function(cb) {
+        request(server)[verb]('/test')
+          .expect(200)
+          .expect('ok')
+          .end(cb);
+      };
+    });
+
+    async.parallel(tasks, done);
+  });
+
+  it('can assign multiple middleware to a route with one verb', done => {
+    const app = makeApp();
+    const r1 = new Router();
+    r1.register('/test', ['get'], [
+      passthru('mw1'),
+      passthru('mw2'),
+      terminal('handler')
+    ]);
+    app.use(r1.middleware());
+
+    request(app.listen())
+      .get('/test')
+      .expect(200)
+      .expect(['A', 'mw1', 'mw2', 'handler'])
+      .end(done);
+  });
+
+  it('can assign multiple middleware to a route with multiple verbs', done => {
+    const app = makeApp();
+    const r1 = new Router();
+    r1.register('/test', ['get', 'post', 'put', 'delete'], [
+      passthru('mw1'),
+      passthru('mw2'),
+      terminal('handler')
+    ]);
+    app.use(r1.middleware());
+
+    const server = app.listen();
+    const tasks = ['get', 'post', 'put', 'delete'].map(verb => {
+      return function(cb) {
+        request(server)[verb]('/test')
+          .expect(200)
+          .expect(['A', 'mw1', 'mw2', 'handler'])
+          .end(cb);
+      };
+    });
+
+    async.parallel(tasks, done);
+  });
+});
