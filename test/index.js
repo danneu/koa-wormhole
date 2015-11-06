@@ -1045,3 +1045,31 @@ describe('HEAD request', () => {
     ], done);
   });
 });
+
+describe('regex paths', () => {
+  it('works', done => {
+    const app = makeApp();
+    const router = new Router();
+    router.get(/a/, terminal('end'));
+    app.use(router.middleware());
+
+    const server = app.listen();
+    const tasks = [
+      cb => {
+        request(server)
+          .get('/xxxaxxx')
+          .expect(200)
+          .expect(['A', 'end'])
+          .end(cb);
+      },
+      cb => {
+        request(server)
+          .get('/xxx')
+          .expect(404)
+          .end(cb);
+      }
+    ];
+
+    async.parallel(tasks, done);
+  });
+});

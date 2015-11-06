@@ -108,7 +108,7 @@ Router.prototype.use = function() {
 };
 
 Router.prototype.register = function(path, verbs, mws) {
-  assert(_.isString(path));
+  assert(_.isString(path) || _.isRegExp(path));
   assert(_.isArray(verbs));
   assert(_.isArray(mws));
 
