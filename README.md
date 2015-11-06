@@ -22,7 +22,7 @@ router1.get('/', ...);
 const router2 = new Router();
 router2.get('/users', ...);
 router2.post('/users', ...);
-router.get('/users/:username', ...);
+router2.get('/users/:username', ...);
 
 app.use(router1.middleware());
 app.use(router2.middleware());
