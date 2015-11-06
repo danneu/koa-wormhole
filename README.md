@@ -170,6 +170,8 @@ and koa-router.
 
 Read its docs for more examples.
 
+koa-wormhole exposes URL params via the `this.params` object. 
+
 [path-to-regexp]: https://github.com/pillarjs/path-to-regexp
 
 ``` javascript
@@ -182,6 +184,30 @@ router.get('/users/:id', function*() {
     user: user
   });
 });
+```
+
+### URL param middleware
+
+You can DRY up repetitive logic with `Router#param(key, middleware)`.
+
+For example, it's useful for auto-loading resources.
+
+``` javascript
+router.param('user_id', function*(val, next) {
+  this.resource = yield db.findUserById(val);
+  this.assert(this.resource, 404);
+  yield* next;
+});
+
+// `this.resource` is now guaranteed to exist in these handlers
+router.get('/users/:user_id', ...);
+router.get('/users/:user_id/edit', ...);
+router.del('/users/:user_id', ...);
+router.put('/users/:user_id', ...);
+
+// and the param middleware will not be called for these
+router.get('/users', ...);
+router.post('/users', ...);
 ```
 
 ### Method chaining
