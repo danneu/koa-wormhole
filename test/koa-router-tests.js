@@ -5,6 +5,7 @@ const request = require('supertest');
 const koa = require('koa');
 const assert = require('chai').assert;
 const _ = require('lodash');
+const async = require('async');
 // 1st
 const Router = require('../src/index.js');
 
@@ -67,6 +68,49 @@ describe('Router', () => {
       .get('/test')
       .expect(404)
       .end(done);
+  });
+
+  describe('nests routers with prefixes at root', () => {
+    const app = koa();
+    const forums = new Router().prefix('/forums');
+    const posts = new Router().prefix('/:fid/posts')
+      .get('/', function*(next) {
+        this.status = 204;
+        yield* next;
+      })
+      .get('/:pid', function*(next) {
+        this.body = this.params;
+        yield* next;
+      })
+    forums.use(posts.middleware());
+    app.use(forums.middleware());
+
+    console.log('forums._prefix:', forums._prefix);
+    console.log('posts._prefix', posts._prefix);
+
+    const server = app.listen();
+
+    it('test1', done => {
+      request(server)
+        .get('/forums/1')
+        .expect(404)
+        .end(done);
+    });
+
+    it('test2', done => {
+      request(server)
+        .get('/forums/1/posts')
+        .expect(204)
+        .end(done);
+    });
+
+    it('test3', done => {
+      request(server)
+        .get('/forums/1/posts/2')
+        .expect(200)
+        .expect({ fid: 1, pid: 2})
+        .end(done);
+    });
   });
 
   it('runs subrouter middleware after parent', done => {

@@ -4,7 +4,8 @@
   "description": "A http request router for Koa",
   "main": "src/index.js",
   "scripts": {
-    "test": "NODE_ENV=test mocha --reporter spec"
+    "test": "NODE_ENV=test mocha --reporter spec",
+    "autotest": "NODE_ENV=test mocha --watch --reporter spec"
   },
   "repository": {
     "type": "git",
@@ -20,6 +21,7 @@
   "dependencies": {
     "better-assert": "1.0.2",
     "debug": "2.2.0",
+    "is-generator-function": "^1.0.3",
     "koa-compose": "2.3.0",
     "lodash": "3.10.1",
     "methods": "1.1.1",

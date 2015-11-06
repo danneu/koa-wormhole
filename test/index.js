@@ -9,6 +9,7 @@ const async = require('async');
 const methods = require('methods'); // note: lowercased
 // 1st
 const Router = require('../src/index.js');
+const helpers = require('./helpers');
 
 function makeApp() {
   const app = koa();
@@ -541,25 +542,10 @@ describe('multiple routes that match the same request', () => {
   });
 });
 
-describe('instantiation', () => {
-  it('works without the `new` keyword', done => {
-    const app = makeApp();
-    const r1 = Router();
-    r1.get('/test', terminal('/test'));
-    app.use(r1.middleware());
-
-    request(app.listen())
-      .get('/test')
-      .expect(200)
-      .expect(['A', '/test'])
-      .end(done);
-  });
-});
-
 describe('Router#all', () => {
   it('responds to all http verbs', done => {
     const app = makeApp();
-    const r1 = Router();
+    const r1 = new Router();
     r1.all('/test', function*() { this.body = 'ok'; });
     app.use(r1.middleware());
 
@@ -770,55 +756,55 @@ describe('default behavior:', () => {
   });
 });
 
-describe('behavior override:', () => {
-  it('allows case-sensitive path matching', done => {
-    const app = makeApp();
-    const r1 = new Router({ sensitive: true });
-    r1.get('/Foo', terminal('handler'));
-    app.use(r1.middleware());
+//describe('behavior override:', () => {
+  //it('allows case-sensitive path matching', done => {
+    //const app = makeApp();
+    //const r1 = new Router({ sensitive: true });
+    //r1.get('/Foo', terminal('handler'));
+    //app.use(r1.middleware());
 
-    const server = app.listen();
-    async.parallel([
-      cb => request(server).get('/foo').expect(404).end(cb),
-      cb => request(server).get('/FOO').expect(404).end(cb),
-      cb => request(server).get('/Foo').expect(200).end(cb),
-      cb => request(server).get('/sanity-check').expect(404).end(cb)
-    ], done);
-  });
+    //const server = app.listen();
+    //async.parallel([
+      //cb => request(server).get('/foo').expect(404).end(cb),
+      //cb => request(server).get('/FOO').expect(404).end(cb),
+      //cb => request(server).get('/Foo').expect(200).end(cb),
+      //cb => request(server).get('/sanity-check').expect(404).end(cb)
+    //], done);
+  //});
 
-  it('allows trailing-slash strictness', done => {
-    const app = makeApp();
-    const r1 = new Router({ strict: true });
-    r1.get('/foo', terminal('handler'));
-    r1.get('/bar/', terminal('handler'));
-    app.use(r1.middleware());
+  //it('allows trailing-slash strictness', done => {
+    //const app = makeApp();
+    //const r1 = new Router({ strict: true });
+    //r1.get('/foo', terminal('handler'));
+    //r1.get('/bar/', terminal('handler'));
+    //app.use(r1.middleware());
 
-    const server = app.listen();
-    async.parallel([
-      cb => request(server).get('/foo').expect(200).end(cb),
-      cb => request(server).get('/foo/').expect(404).end(cb),
-      cb => request(server).get('/bar').expect(404).end(cb),
-      cb => request(server).get('/bar/').expect(200).end(cb),
-      cb => request(server).get('/sanity-check').expect(404).end(cb)
-    ], done);
-  });
+    //const server = app.listen();
+    //async.parallel([
+      //cb => request(server).get('/foo').expect(200).end(cb),
+      //cb => request(server).get('/foo/').expect(404).end(cb),
+      //cb => request(server).get('/bar').expect(404).end(cb),
+      //cb => request(server).get('/bar/').expect(200).end(cb),
+      //cb => request(server).get('/sanity-check').expect(404).end(cb)
+    //], done);
+  //});
 
-  it('allow partial path match from start', done => {
-    const app = makeApp();
-    const r1 = new Router({ end: false });
-    r1.get('/foo', terminal('handler'));
-    app.use(r1.middleware());
+  //it('allow partial path match from start', done => {
+    //const app = makeApp();
+    //const r1 = new Router({ end: false });
+    //r1.get('/foo', terminal('handler'));
+    //app.use(r1.middleware());
 
-    const server = app.listen();
-    async.parallel([
-      cb => request(server).get('/foo').expect(200).end(cb),
-      cb => request(server).get('/foo/').expect(200).end(cb),
-      cb => request(server).get('/foo/bar').expect(200).end(cb),
-      cb => request(server).get('/foo/bar/').expect(200).end(cb),
-      cb => request(server).get('/sanity-check').expect(404).end(cb)
-    ], done);
-  });
-});
+    //const server = app.listen();
+    //async.parallel([
+      //cb => request(server).get('/foo').expect(200).end(cb),
+      //cb => request(server).get('/foo/').expect(200).end(cb),
+      //cb => request(server).get('/foo/bar').expect(200).end(cb),
+      //cb => request(server).get('/foo/bar/').expect(200).end(cb),
+      //cb => request(server).get('/sanity-check').expect(404).end(cb)
+    //], done);
+  //});
+//});
 
 describe('when parent yields to child router matching same request,', () => {
   describe('child router', () => {
@@ -986,90 +972,358 @@ describe('Validator#param', () => {
   });
 });
 
-describe('HEAD request', () => {
-  it('is allowed any time a GET is defined for the route', done => {
+//describe('HEAD request', () => {
+  //it('is allowed any time a GET is defined for the route', done => {
+    //const app = makeApp();
+    //const router = new Router();
+    //router.get('/zoo', function*() {
+      //// set this header to ensure that our head request actually hits the get
+      //// request i.e. picks up and preserves its custom header.
+      //this.set('test-header', 'ok');
+      //this.body = 'ok';
+    //});
+    //app.use(router.middleware());
+
+    //const server = app.listen();
+    //async.parallel([
+        //function(cb) {
+          //request(server)
+            //.get('/zoo')
+            //.expect(200)
+            //.expect('content-length', 2)
+            //.expect('test-header', 'ok')
+            //.expect('ok')
+            //.end(cb);
+        //},
+        //function(cb) {
+          //request(server)
+            //.head('/zoo')
+            //.expect(200)
+            //.expect('content-length', 0)
+            //.expect('test-header', 'ok')
+            //.expect('')
+            //.end(cb);
+        //}
+    //], done);
+  //});
+
+  //it('404 if there is no GET request for that path', done => {
+    //const app = makeApp();
+    //const router = new Router();
+    //router.post('/users', function*() { this.body = 'ok'; });
+    //app.use(router.middleware());
+
+    //const server = app.listen();
+    //async.parallel([
+        //function(cb) {
+          //request(server)
+            //.post('/users')
+            //.expect(200)
+            //.expect('ok')
+            //.end(cb);
+        //},
+        //function(cb) {
+          //request(server)
+            //.head('/users')
+            //.expect(404)
+            //.end(cb);
+        //}
+    //], done);
+  //});
+//});
+
+describe('Router#{verb}()', () => {
+  it('handles optional path argument', done => {
     const app = makeApp();
     const router = new Router();
-    router.get('/zoo', function*() {
-      // set this header to ensure that our head request actually hits the get
-      // request i.e. picks up and preserves its custom header.
-      this.set('test-header', 'ok');
-      this.body = 'ok';
-    });
+    router.get(terminal('end'));
     app.use(router.middleware());
 
-    const server = app.listen();
-    async.parallel([
-        function(cb) {
-          request(server)
-            .get('/zoo')
-            .expect(200)
-            .expect('content-length', 2)
-            .expect('test-header', 'ok')
-            .expect('ok')
-            .end(cb);
-        },
-        function(cb) {
-          request(server)
-            .head('/zoo')
-            .expect(200)
-            .expect('content-length', 0)
-            .expect('test-header', 'ok')
-            .expect('')
-            .end(cb);
-        }
-    ], done);
-  });
-
-  it('404 if there is no GET request for that path', done => {
-    const app = makeApp();
-    const router = new Router();
-    router.post('/users', function*() { this.body = 'ok'; });
-    app.use(router.middleware());
-
-    const server = app.listen();
-    async.parallel([
-        function(cb) {
-          request(server)
-            .post('/users')
-            .expect(200)
-            .expect('ok')
-            .end(cb);
-        },
-        function(cb) {
-          request(server)
-            .head('/users')
-            .expect(404)
-            .end(cb);
-        }
-    ], done);
+    request(app.listen())
+      .get('/')
+      .expect(200)
+      .expect(['A', 'end'])
+      .end(done);
   });
 });
 
-describe('regex paths', () => {
-  it('works', done => {
+describe('Router#prefix', () => {
+  it('basic case works', done => {
     const app = makeApp();
     const router = new Router();
-    router.get(/a/, terminal('end'));
+    router
+      .prefix('/users')
+      .get(terminal('end'));
+    app.use(router.middleware());
+
+    request(app.listen())
+      .get('/users')
+      .expect(200)
+      .expect(['A', 'end'])
+      .end(done);
+  });
+
+  it('can be chained', done => {
+    const app = makeApp();
+    const router = new Router();
+    router
+      .prefix('/users')
+      .get(terminal('end1'))
+      .prefix('/foo')
+      .get(terminal('end2'))
     app.use(router.middleware());
 
     const server = app.listen();
-    const tasks = [
+    async.parallel([
       cb => {
         request(server)
-          .get('/xxxaxxx')
+          .get('/users')
           .expect(200)
-          .expect(['A', 'end'])
+          .expect(['A', 'end1'])
           .end(cb);
       },
       cb => {
         request(server)
-          .get('/xxx')
-          .expect(404)
+          .get('/foo')
+          .expect(200)
+          .expect(['A', 'end2'])
           .end(cb);
       }
-    ];
+    ], done);
+  });
 
-    async.parallel(tasks, done);
+  it('works with url params (in prefix)', done => {
+    const app = makeApp();
+    const router = new Router();
+    router
+      .prefix('/users/:id')
+      .get(function*() {
+        this.body = this.params;
+      });
+    app.use(router.middleware());
+
+    request(app.listen())
+      .get('/users/42')
+      .expect(200)
+      .expect({ id: 42 })
+      .end(done);
+  });
+
+  it('works with url params (in prefix AND routes)', done => {
+    const app = makeApp();
+    const router = new Router();
+    router
+      .prefix('/users/:user_id')
+      .get('/comments/:comment_id', function*() {
+        this.body = this.params;
+      });
+    app.use(router.middleware());
+
+    request(app.listen())
+      .get('/users/42/comments/69')
+      .expect(200)
+      .expect({ user_id: 42, comment_id: 69 })
+      .end(done);
+  });
+
+  it('works with Router#param (prefix defines param)', done => {
+    const app = makeApp();
+    const router = new Router();
+    router
+      .prefix('/users/:user_id')
+      .param('user_id', function*(val, next) {
+        this.currUser = { id: val };
+        yield* next;
+      })
+      .get(function*() {
+        this.body = this.currUser;
+      });
+    app.use(router.middleware());
+
+    request(app.listen())
+      .get('/users/42')
+      .expect(200)
+      .expect({ id: 42 })
+      .end(done);
+  });
+
+  it('works with Router#param (prefix AND route define params)', done => {
+    const app = makeApp();
+    const router = new Router();
+    router
+      .prefix('/users/:user_id')
+      .param('user_id', function*(val, next) {
+        this.state.user_id = val;
+        yield* next;
+      })
+      .param('comment_id', function*(val, next) {
+        this.state.comment_id = val;
+        yield* next;
+      })
+      .get('/comments/:comment_id', function*() {
+        this.body = [this.state.user_id, this.state.comment_id];
+      });
+    app.use(router.middleware());
+
+    request(app.listen())
+      .get('/users/42/comments/69')
+      .expect(200)
+      .expect([42, 69])
+      .end(done);
+  });
+
+  it('works when not chained too', done => {
+    const app = makeApp();
+    const router = new Router();
+    router.prefix('/foo');
+    router.get('/bar', terminal('foobar'));
+    app.use(router.middleware());
+
+    request(app.listen())
+      .get('/foo/bar')
+      .expect(200)
+      .expect(['A', 'foobar'])
+      .end(done);
+  });
+});
+
+describe('Router#prefix', () => {
+  describe('base case', done => {
+    const app = makeApp();
+    const r1 = new Router();
+    r1
+      .use(passthru('mw-1'))
+      .get('/', terminal('ok-1'))
+      .use(passthru('mw-2'))
+      .prefix('/prefix')
+      .use(passthru('mw-3'))
+      .get('/', terminal('ok-2'))
+      .get('/foo', terminal('ok-3'));
+
+    app.use(r1.middleware());
+
+    helpers.tests.call(this, app.listen(), [
+      ['get', '/', 200, ['A', 'mw-1', 'ok-1']],
+      ['get', '/prefix', 200, ['A', 'mw-1', 'mw-2', 'mw-3', 'ok-2']],
+      ['get', '/prefix/foo', 200, ['A', 'mw-1', 'mw-2', 'mw-3', 'ok-3']],
+      ['get', '/foo', 404, ['A', 'Z']],
+      ['get', '/not-found', 404, ['A', 'Z']],
+    ]);
+  });
+
+  describe('multiple calls', done => {
+    const app = makeApp();
+    const r1 = new Router();
+    r1
+      .prefix('/prefix-1')
+      .get('/path-1', terminal('ok-1'))
+      .prefix('/prefix-2')
+      .get('/path-2', terminal('ok-2'))
+      .prefix('/prefix-3')
+      .get('/path-3', terminal('ok-3'));
+
+    app.use(r1.middleware());
+
+    helpers.tests.call(this, app.listen(), [
+      ['get', '/not-found', 404, ['A', 'Z']],
+      ['get', '/prefix-1/path-1', 200, ['A', 'ok-1']],
+      ['get', '/prefix-2/path-2', 200, ['A', 'ok-2']],
+      ['get', '/prefix-3/path-3', 200, ['A', 'ok-3']],
+      ['get', '/path-1', 404, ['A', 'Z']],
+      ['get', '/path-2', 404, ['A', 'Z']],
+      ['get', '/path-3', 404, ['A', 'Z']],
+      ['get', '/prefix-1', 404, ['A', 'Z']],
+      ['get', '/prefix-2', 404, ['A', 'Z']],
+      ['get', '/prefix-3', 404, ['A', 'Z']],
+    ]);
+  });
+
+  describe('child router gets mounted to parent prefix', done => {
+    const app = makeApp();
+    const parent = new Router().prefix('/parent');
+    const child = new Router()
+      .get('/child', terminal('ok'));
+
+    parent.use(child.middleware());
+    app.use(parent.middleware());
+
+    helpers.tests.call(this, app.listen(), [
+      // 200s
+      ['get', '/parent/child', 200, ['A', 'ok']],
+      // 404s
+      ['get', '/parent', 404, ['A', 'Z']],
+      ['get', '/child', 404, ['A', 'Z']],
+      ['get', '/', 404, ['A', 'Z']],
+    ]);
+  });
+
+  describe('child router does not mutate when mounting to parent', done => {
+    const app = makeApp();
+    const parent1 = new Router().prefix('/parent1').use(passthru('mw1'));
+    const parent2 = new Router().prefix('/parent2').use(passthru('mw2'));
+    const child = new Router()
+      .get('/child', terminal('ok'));
+
+    app.use(parent1.use(child.middleware()).middleware());
+    app.use(parent2.use(child.middleware()).middleware());
+    app.use(child.middleware());
+
+    helpers.tests.call(this, app.listen(), [
+      // 200s
+      ['get', '/parent1/child', 200, ['A', 'mw1', 'ok']],
+      ['get', '/parent2/child', 200, ['A', 'mw2', 'ok']],
+      ['get', '/child', 200, ['A', 'ok']],
+      // 404s
+      ['get', '/sanity-check', 404, ['A', 'Z']],
+      ['get', '/parent1', 404, ['A', 'Z']],
+      ['get', '/parent2', 404, ['A', 'Z']],
+    ]);
+  });
+
+  describe('this.params parses params out of full prefix+path', done => {
+    const app = makeApp();
+    const parent = new Router().prefix('/parent/:pid');
+    const child = new Router()
+      .get('/child/:cid', function*() {
+        this.body = this.params;
+      });
+
+    app.use(parent.use(child.middleware()).middleware());
+
+    helpers.tests.call(this, app.listen(), [
+      // 200s
+      ['get', '/parent/1/child/2', 200, { pid: 1, cid: 2}],
+      // 404s
+      ['get', '/sanity-check', 404, ['A', 'Z']],
+    ]);
+  });
+
+  describe('#param still works with prefix+nesting', done => {
+    const app = makeApp();
+    const parent = new Router()
+      .prefix('/parent/:pid')
+      .param('pid', function*(val, next) {
+        this.arr.push(val);
+        yield* next;
+      })
+    const child = new Router()
+      .param('cid', function*(val, next) {
+        this.arr.push(val);
+        yield* next;
+      })
+      .get('/child/:cid', function*() {
+        this.body = this.arr;
+      })
+
+    app.use(parent.use(child.middleware()).middleware());
+
+    helpers.tests.call(this, app.listen(), [
+      // 200s
+      ['get', '/parent/1/child/2', 200, ['A', '1', '2']],
+      // 404s
+      ['get', '/sanity-check', 404, ['A', 'Z']],
+      ['get', '/parent/1', 404, ['A', 'Z']],
+      ['get', '/child/2', 404, ['A', 'Z']],
+    ]);
   });
 });

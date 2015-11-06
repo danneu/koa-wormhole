@@ -1,180 +1,164 @@
 'use strict';
 
+// Node
+const nodePath = require('path');
 // 3rd
-const compose = require('koa-compose');
-const assert = require('better-assert');
-const methods = require('methods'); // note: these methods are all lowercase
-const pathToRegexp = require('path-to-regexp');
 const _ = require('lodash');
 const debug = require('debug')('koa-wormhole:index');
+const assert = require('better-assert');
+const compose = require('koa-compose');
+const pathToRegexp = require('path-to-regexp');
+const allVerbs = require('methods');
+_.isGenerator = require('is-generator-function');
+// 1st
+const Route = require('./route');
 
-function Router(opts) {
-  // allow Router() to be instantiated without the `new` keyword
-  // seems to be common in koa ecosystem
-  if (!(this instanceof Router)) {
-    return new Router();
+class Router {
+  constructor(opts) {
+    opts = opts || {};
+    // an array of middleware (generators) and route instances
+    this.stack = opts.stack || [];
+    // an array of routes that just exists as a dumb way to see if
+    // the router has a matching route given a request
+    this.routes = opts.routes || [];
+    this._prefix = opts.prefix || '/';
   }
 
-  this.opts = _.defaults(opts || {}, {
-    // the pathToRegexp defaults
-    sensitive: false,
-    strict: false,
-    end: true
-  });
+  clone() {
+    return new Router({
+      stack: clone(this.stack),
+      routes: clone(this.routes),
+      prefix: this._prefix
+    });
+  }
 
-  // the full stack of middleware in this router to be composed at
-  // .middleware() time into a single middleware function
-  this.stack = [];
-  // this.routes simply maintains the state necessary to know if a given
-  // request matches a route in the router's stack.
-  // - if true, then compose(this.stack).call(ctx).
-  // - if false, then we skip the router entirely.
-  this.routes = [];
-}
+  // mutates the router's current prefix.
+  prefix(newPrefix) {
+    const self = this;
+    self._prefix = newPrefix;
+    return self;
+  }
 
-Router.prototype.param = function(key, mw) {
-  this.use(function*(next) {
-    // activate mw if param key is in pathRe keys
-    // TODO: consider the scenario where this.params is mutated upstream
-    // perhaps i should look at route's pathRe.keys.some(k => k.name===key)
-    // directly. write tests that consider this exact mutation event.
-    if (_.isUndefined(this.params[key])) {
-      yield* next;
-    } else {
-      yield* mw.call(this, this.params[key], next);
-    }
-  });
+  // clones the child router and merges their prefixed stack into ours
+  // we don't want to mutate child, just respond to their routes+middleware.
+  mount(child) {
+    assert(child instanceof Router);
+    const adjustedChild = child.clone().mountTo(this._prefix);
+    this.stack.push(adjustedChild.middleware());
+    this.routes.push(...adjustedChild.routes);
+    return this;
+  }
 
-  return this;
-};
+  // mutates your stack to respond to a new, prepended prefix
+  mountTo(prefix) {
+    const self = this;
+    const newPrefix = nodePath.join(prefix, self._prefix);
+    self._prefix = newPrefix;
 
-Router.prototype.middleware = function() {
-  // this is the accumulation of all the .use() and .{verb}() methods
-  // called on this router, composed into one big chain
-  const middlewareChain = compose(this.stack);
-
-  const self = this;
-
-  // The final middleware generator function that the router returns
-  // simply wraps the router's middleware chain with "only pipe the request
-  // through this chain if the request matches one of its routes"
-  const wrapware = function* wrapware(next) {
-    const ctx = this;
-
-    const isMatch = self.routes.some(route => {
-      if (!_.contains(route.methods, ctx.method.toLowerCase())) return false;
-      const result = route.pathRe.exec(ctx.path);
-      if (!result) return false;
-
-      // FIXME: it's nasty having a side-effect in a filter function like this
-      // TODO: figure out what i actually want to expose
-      // and why.
-      ctx.params = _.zipObject(_.pluck(route.pathRe.keys, 'name'), result.slice(1));
-
-      return true;
+    self.routes = self.routes.map(r => r.mountTo(prefix));
+    self.stack = self.stack.map(x => {
+      return x instanceof Route ? x.mountTo(prefix) : x
     });
 
-    // if the request doesn't match a router's route, we skip
-    // the router entirely.
-    if (isMatch) {
-      yield* middlewareChain.call(ctx, next);
-    } else {
-      yield* next;
-    }
-  };
+    return this;
+  }
 
-  // to get router nesting to work with unified `r1.use(r2.middleware())`
-  // syntax, we need to expose enough info to r1.use() so that it can
-  // merge (and thus match) r2's routes into its own this.routes array
-  wrapware.router = this;
+  use() {
+    const mws = Array.prototype.slice.call(arguments);
+    const self = this;
+    mws.forEach(x => {
+      if (x.router) {
+        self.mount(x.router);
+      } else {
+        self.stack.push(x);
+      }
+    });
+    return this;
+  }
 
-  return wrapware;
-};
+  middleware() {
+    const self = this;
+    const composed = compose(this.stack.map(x => {
+      return x instanceof Route ? x.middleware() : x;
+    }));
 
-Router.prototype.use = function() {
-  const mws = Array.prototype.slice.call(arguments);
-  const self = this;
-
-  // merge routes from nested routers so that parent router can match on them
-  mws.forEach(mw => {
-    if (mw.router) {
-      self.routes.push(...mw.router.routes);
-    }
-  });
-
-  this.stack.push(...mws);
-
-  return this;
-};
-
-Router.prototype.register = function(path, verbs, mws) {
-  assert(_.isString(path) || _.isRegExp(path));
-  assert(_.isArray(verbs));
-  assert(_.isArray(mws));
-
-  // shouldn't have to remember if verbs are upper or lower case.
-  verbs = verbs.map(s => s.toLowerCase());
-
-  const pathRe = pathToRegexp(path, _.pick(this.opts, [
-    'sensitive',
-    'strict',
-    'end'
-  ]));
-
-  // a route is just middleware that only gets called when it matches
-  // ctx.method and ctx.path, so here we wrap the handler in that logic
-  // to be composed with the rest of this.stack.
-  const wrappedMws = mws.map(mw => {
-    return function*(next) {
+    const wrapware = function*(next) {
       const ctx = this;
-      if (_.contains(verbs, ctx.method.toLowerCase()) && pathRe.exec(ctx.path)) {
-        yield* mw.call(ctx, next);
+      const route = _.find(self.routes, route => route.matches(ctx));
+      if (route) {
+        ctx.params = route.parseParams(ctx);
+        yield* composed.call(ctx, next);
       } else {
         yield* next;
       }
-    };
-  });
+    }
 
-  // handle HEAD if route handles GET
-  //
-  // we want our default HEAD response to run before the GET so that we can
-  // yield next and modify the GET response as it comes back upstream (
-  // removing the body)
-  if (_.contains(verbs, 'get') && !_.contains(verbs, 'head')) {
-    this.register(path, ['head'], [function*(next) {
-      const ctx = this;
-      yield* next;
-      ctx.body = '';
-    }, ...mws]);
+    wrapware.router = self;
+    return wrapware;
   }
 
-  this.stack.push(...wrappedMws);
-
-  this.routes.push({
-    methods: verbs,
-    path: path, // String
-    pathRe: pathRe
-  });
-
-  return this;
-};
-
-methods.forEach(method => {
-  Router.prototype[method] = function(path /*, ...mws */) {
-    const mws = Array.prototype.slice.call(arguments, 1);
-    assert(_.isArray(mws));
-    this.register(path, [method], _.flatten(mws));
+  param(key, mw) {
+    this.use(function*(next) {
+      if (_.isUndefined(this.params[key]))
+        yield* next;
+      else
+        yield* mw.call(this, this.params[key], next);
+    });
     return this;
-  };
+  }
+
+  register(path, verbs, mws) {
+    assert(_.isString(path));
+    assert(_.isArray(verbs));
+    assert(_.isArray(mws));
+
+    const route = new Route(this._prefix, path, verbs, mws);
+    this.stack.push(route);
+    this.routes.push(route);
+    return this;
+  }
+}
+
+// create convenience method for each http verb
+allVerbs.forEach(verb => {
+  Router.prototype[verb] = makeVerbHandler([verb]);
 });
 
-// alias router#del -> router#delete since delete is reserved word
+// creates a route that responds to all verbs
+Router.prototype.all = makeVerbHandler(require('methods'));
+
+// alias del->delete since delete is a reserved word
 Router.prototype.del = Router.prototype['delete'];
 
-Router.prototype.all = function(path /*, ...mws */) {
-  const mws = Array.prototype.slice.call(arguments, 1);
-  this.register(path, require('methods'), mws);
-  return this;
-};
+////////////////////////////////////////////////////////////
 
 module.exports = Router;
+
+////////////////////////////////////////////////////////////
+
+// Helpers
+
+function makeVerbHandler(verbsHandled) {
+  assert(_.isArray(verbsHandled));
+  return function(path /*, ...mws */) {
+    let mws;
+    if (_.isString(path)) {
+      mws = Array.prototype.slice.call(arguments, 1);
+    } else {
+      mws = Array.prototype.slice.call(arguments);
+      path = '/';
+    }
+
+    this.register(path, verbsHandled, _.flatten(mws));
+    return this;
+  };
+}
+
+function clone(x) {
+  if (x.clone)
+    return x.clone();
+  if (_.isArray(x)) {
+    return x.map(clone);
+  }
+  return x;
+}
