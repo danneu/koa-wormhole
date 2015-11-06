@@ -14,6 +14,7 @@ A simple, predictable, low-performance router for
 
 ``` javascript
 const Router = require('koa-wormhole');
+const app = require('koa')();
 
 const router1 = new Router();
 router1.use(function*(next) { console.log('inside router1'); yield* next; });
